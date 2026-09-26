@@ -12,6 +12,9 @@ on:
       - ".github/workflows/vercel-deploy.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: vercel-deploy-${{ github.ref }}
   cancel-in-progress: true
