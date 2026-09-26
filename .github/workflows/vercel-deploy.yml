@@ -11,6 +11,15 @@ on:
       - "nextjs_yessbgd/**"
       - ".github/workflows/vercel-deploy.yml"
   workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: "Deployment target for manual runs"
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - production
 
 permissions:
   contents: read
@@ -44,31 +53,35 @@ jobs:
         run: npm install --global vercel@latest
 
       - name: Pull Vercel preview environment
-        if: github.event_name == 'pull_request'
+        if: (github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork) || (github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'preview')
         working-directory: nextjs_yessbgd
         run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build preview artifacts
-        if: github.event_name == 'pull_request'
+        if: (github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork) || (github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'preview')
         working-directory: nextjs_yessbgd
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy preview
-        if: github.event_name == 'pull_request'
+        if: (github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork) || (github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'preview')
         working-directory: nextjs_yessbgd
         run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
 
+      - name: Skip preview deploy for fork pull requests
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork
+        run: echo "Skipping preview deployment because repository secrets are unavailable for fork pull requests."
+
       - name: Pull Vercel production environment
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'production')
         working-directory: nextjs_yessbgd
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build production artifacts
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'production')
         working-directory: nextjs_yessbgd
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy production
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'production')
         working-directory: nextjs_yessbgd
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
